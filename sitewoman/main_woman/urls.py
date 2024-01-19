@@ -14,3 +14,5 @@ urlpatterns = [
     path('category/<slug:cat_slug>/', views.show_category, name='category'),
     path('tag/<slug:tag_slug>/', views.show_tag_postlist, name='tag'),
 ]
+
+sun in the rain
