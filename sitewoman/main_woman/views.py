@@ -23,7 +23,7 @@ data_db = [
 
 # Create your views here.
 def index(request):  # HttpRequest
-    posts = Women.published.all()
+    posts = Women.published.all().select_related('cat')
     data = {
         'title': 'Главная страница',
         'menu': menu,
@@ -78,9 +78,10 @@ def show_category(request, cat_slug):
 
     return render(request, 'main_woman/index.html', context=data)
 
+
 def show_tag_postlist(request, tag_slug):
     tag = get_object_or_404(TagPost, slug=tag_slug)
-    posts = tag.tags.filter(is_published=Women.Status.PUBLISHED)
+    posts = tag.tags.filter(is_published=Women.Status.PUBLISHED).select_related('cat')
 
     data = {
         'title': f'Тег {tag.tag}',
@@ -90,6 +91,7 @@ def show_tag_postlist(request, tag_slug):
     }
 
     return render(request, 'main_woman/index.html', context=data)
+
 
 def page_not_found(request, exception):
     return HttpResponseNotFound('<h1>Страница не найдена</h1>')

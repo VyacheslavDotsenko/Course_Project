@@ -22,6 +22,10 @@ from main_woman.views import page_not_found
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('main_woman.urls')),
+    path("__debug__/", include("debug_toolbar.urls")),
 ]
 
 handler404 = page_not_found
+
+admin.site.site_header = "Панель администрирования" # Название панели на сайте администрирования
+admin.site.index_title = "Известные женщины мира" # Название
