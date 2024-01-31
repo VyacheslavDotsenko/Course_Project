@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.db.models.functions import Length
+from django.utils.safestring import mark_safe
 
 from .models import Women, Category
 
@@ -21,15 +22,15 @@ class MarriedFilter(admin.SimpleListFilter): # пользовательский 
 
 @admin.register(Women)
 class WomenAdmin(admin.ModelAdmin):
-    fields = ['title', 'slug', 'content', 'cat', 'husband', 'tags']
+    fields = ['title', 'slug', 'content', 'photo', 'post_photo', 'cat', 'husband', 'tags']
     # exclude = ['tags', 'is_published']
-    # readonly_fields = ['slug']
+    readonly_fields = ['post_photo']
     prepopulated_fields = {"slug": ("title",)}
 
     filter_horizontal = ['tags']
 
     list_display = (
-    'title', 'time_create', 'is_published', 'cat', 'brief_info')  # поля для отоборажения на панели модели
+    'title', 'post_photo', 'time_create', 'is_published', 'cat')  # поля для отоборажения на панели модели
     list_display_links = ('title',)  # кликабельные поля-ссылки
 
     ordering = ['-time_create', 'title']  # сортировка записей для админ-панели
@@ -44,9 +45,13 @@ class WomenAdmin(admin.ModelAdmin):
 
     list_filter = [MarriedFilter, "cat__name", "is_published"]
 
-    @admin.display(description="Краткое описание", ordering=Length('content'))
-    def brief_info(self, women: Women):
-        return f"Описание {len(women.content.split())} слов"
+    save_on_top = True
+
+    @admin.display(description="Фото", ordering=Length('content')) # сортировка здесь не нужна, просто пример
+    def post_photo(self, women: Women):
+        if women.photo:
+            return mark_safe(f"<img src='{women.photo.url}' width=50>")
+        return "Фото не добавлено"
 
     @admin.action(description="Опубликовать выбранные записи")
     def set_published(self, request, queryset):

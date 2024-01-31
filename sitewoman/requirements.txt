@@ -3,12 +3,14 @@ asttokens==2.4.1
 colorama==0.4.6
 decorator==5.1.1
 Django==4.2.7
+django-debug-toolbar==4.2.0
 django-extensions==3.2.3
 executing==2.0.1
 ipython==8.20.0
 jedi==0.19.1
 matplotlib-inline==0.1.6
 parso==0.8.3
+pillow==10.2.0
 prompt-toolkit==3.0.43
 pure-eval==0.2.2
 Pygments==2.17.2
