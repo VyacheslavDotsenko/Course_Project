@@ -1,38 +1,32 @@
 from datetime import datetime
 from django.http import HttpResponse, HttpResponseNotFound, Http404
 from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.template.loader import render_to_string
+from django.views import View
+from django.views.generic import TemplateView, ListView, DetailView, FormView, CreateView, UpdateView
 
 from .forms import AddPostForm, UploadFileForm
 from .models import Women, Category, TagPost, UploadFiles
-
-menu = [{'title': "О сайте", 'url_name': 'about'},
-        {'title': "Добавить статью", 'url_name': 'add_page'},
-        {'title': "Обратная связь", 'url_name': 'contact'},
-        {'title': "Войти", 'url_name': 'login'}
-        ]
+from .utils import DataMixin
 
 
 # Create your views here.
-def index(request):  # HttpRequest
-    posts = Women.published.all().select_related('cat')
-    data = {
-        'title': 'Главная страница',
-        'menu': menu,
-        'posts': posts,
-        'cat_selected': 0,  # не обязательная строчка
-    }
 
-    # t = render_to_string('main_woman/index.html')
-    # return HttpResponse(t)
-    return render(request, 'main_woman/index.html', context=data)
 
-# def handle_uploaded_file(f):
-#     with open(f"uploads/{f.name}", "wb+") as destination:
-#         # C:\\Users\\Admin\\Course_Project\\sitewoman\\uploads\\
-#         for chunk in f.chunks():
-#             destination.write(chunk)
+class WomenHome(DataMixin, ListView):
+    # model = Women # функция get_queryset переопределяет это значение
+
+    context_object_name = "posts"
+
+    template_name = 'main_woman/index.html'
+
+    title_page = 'Главная страница'
+    cat_selected = 0
+
+    def get_queryset(self):
+        return Women.published.all().select_related('cat')
+
 
 def about(request):
     if request.method == "POST":
@@ -44,30 +38,24 @@ def about(request):
     else:
         form = UploadFileForm()
 
-    return render(request, 'main_woman/about.html', {'title': 'О сайте', 'menu': menu, 'form': form})
+    return render(request, 'main_woman/about.html', {'title': 'О сайте', 'form': form})
 
 
-def addpage(request):
-    if request.method == 'POST':
-        form = AddPostForm(request.POST, request.FILES)
-        if form.is_valid():
-            # print(form.cleaned_data)
-            # try:
-            #     Women.objects.create(**form.cleaned_data)
-            #     return redirect("home")
-            # except:
-            #     form.add_error(None, "Ошибка добавления поста")
-            form.save()
-            return redirect("home")
-    else:
-        form = AddPostForm()
+class AddPage(DataMixin, CreateView):
+    form_class = AddPostForm  # переменная нужан при наследовании от FormView
+    # model = Women # атрибуты для CreateView
+    # fields = ['title', 'slug', 'content', 'is_published', 'cat'] # атрибуты для CreateView
+    template_name = 'main_woman/addpage.html'
+    success_url = reverse_lazy('home')  # использование reverse выдаст ошибку
+    title_page = 'Добавление статьи'
 
-    data = {
-        'title': 'Добавление статьи',
-        'menu': menu,
-        'form': form
-    }
-    return render(request, 'main_woman/addpage.html', context=data)
+
+class UpdatePage(DataMixin, UpdateView):
+    model = Women
+    fields = ['title', 'content', 'photo', 'is_published', 'cat']
+    template_name = 'main_woman/addpage.html'
+    success_url = reverse_lazy('home')
+    title_page = 'Редактирование статьи'
 
 
 def contact(request):
@@ -78,45 +66,52 @@ def login(request):
     return HttpResponse("Авторизация")
 
 
-def show_post(request, post_slug):
-    post = get_object_or_404(Women, slug=post_slug)
+class WomenCategory(DataMixin, ListView):
+    template_name = 'main_woman/index.html'
+    context_object_name = 'posts'
 
-    data = {
-        'title': post.title,
-        'menu': menu,
-        'post': post,
-        'cat_selected': 1,
-    }
+    allow_empty = False
 
-    return render(request, 'main_woman/post.html', context=data)
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data(**kwargs)
+        cat = context['posts'][0].cat
+        return self.get_mixin_context(context,
+                                      title='Категория - ' + cat.name,
+                                      cat_selected=cat.id,
+                                      )
 
-
-def show_category(request, cat_slug):
-    category = get_object_or_404(Category, slug=cat_slug)
-    posts = Women.published.filter(cat_id=category.pk)
-
-    data = {
-        'title': f'Рубрика: {category.name}',
-        'menu': menu,
-        'posts': posts,
-        'cat_selected': category.pk,
-    }
-
-    return render(request, 'main_woman/index.html', context=data)
+    def get_queryset(self):
+        return Women.published.filter(cat__slug=self.kwargs['cat_slug']).select_related('cat')
 
 
-def show_tag_postlist(request, tag_slug):
-    tag = get_object_or_404(TagPost, slug=tag_slug)
-    posts = tag.tags.filter(is_published=Women.Status.PUBLISHED).select_related('cat')
+class TagPostList(DataMixin, ListView):
+    template_name = 'main_woman/index.html'
+    context_object_name = 'posts'
+    allow_empty = False
 
-    data = {
-        'title': f'Тег {tag.tag}',
-        'menu': menu,
-        'posts': posts,
-        'cat_selected': None,
-    }
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data(**kwargs)
+        tag = TagPost.objects.get(slug=self.kwargs['tag_slug'])
+        return self.get_mixin_context(context, title='Тег: ' + tag.tag)
 
-    return render(request, 'main_woman/index.html', context=data)
+    def get_queryset(self):
+        return Women.published.filter(tags__slug=self.kwargs['tag_slug']).select_related('cat')
+
+
+class ShowPost(DataMixin, DetailView):
+    model = Women
+    template_name = 'main_woman/post.html'
+
+    slug_url_kwarg = 'post_slug'
+
+    context_object_name = 'post'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return self.get_mixin_context(context, title=context['post'].title)
+
+    def get_object(self, queryset=None):
+        return get_object_or_404(Women.published, slug=self.kwargs[self.slug_url_kwarg])
 
 
 def page_not_found(request, exception):
