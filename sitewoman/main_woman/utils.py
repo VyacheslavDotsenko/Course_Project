@@ -8,6 +8,7 @@ menu = [{'title': "О сайте", 'url_name': 'about'},
 class DataMixin:
     title_page = None
     cat_selected = None
+    paginate_by = 3
     extra_context = {}
 
     def __init__(self):
