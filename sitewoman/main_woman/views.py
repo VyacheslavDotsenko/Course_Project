@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.http import HttpResponse, HttpResponseNotFound, Http404
 from django.shortcuts import render, redirect, get_object_or_404
@@ -31,7 +33,7 @@ class WomenHome(DataMixin, ListView):
     def get_queryset(self):
         return Women.published.all().select_related('cat')
 
-
+@login_required()
 def about(request):
     contact_list = Women.published.all()
     paginator = Paginator(contact_list, 3)
@@ -42,13 +44,20 @@ def about(request):
     return render(request, 'main_woman/about.html', {'title': 'О сайте', 'page_obj': page_obj})
 
 
-class AddPage(DataMixin, CreateView):
+class AddPage(LoginRequiredMixin, DataMixin, CreateView):
     form_class = AddPostForm  # переменная нужан при наследовании от FormView
     # model = Women # атрибуты для CreateView
     # fields = ['title', 'slug', 'content', 'is_published', 'cat'] # атрибуты для CreateView
     template_name = 'main_woman/addpage.html'
     success_url = reverse_lazy('home')  # использование reverse выдаст ошибку
     title_page = 'Добавление статьи'
+
+    login_url = '/admin/'
+
+    def form_valid(self, form):
+        w = form.save(commit=False)
+        w.author = self.request.user
+        return super().form_valid(form)
 
 
 class UpdatePage(DataMixin, UpdateView):
